@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Software Collection</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { min-height: 100vh; background: #0f172a; color: #e2e8f0; font-family: sans-serif; padding: 24px; }
+  h1 { font-size: 24px; color: #f8fafc; }
+  .subtitle { color: #94a3b8; font-size: 14px; margin-top: 4px; }
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+  .header-btns { display: flex; gap: 10px; }
+  button { cursor: pointer; border: none; border-radius: 8px; padding: 8px 16px; font-size: 14px; font-weight: bold; }
+  .btn-login { background: #3b82f6; color: #fff; }
+  .btn-logout { background: #ef4444; color: #fff; }
+  .btn-add { background: #22c55e; color: #fff; }
+  .btn-edit { background: #f59e0b; color: #000; padding: 6px 12px; font-size: 13px; }
+  .btn-delete { background: #ef4444; color: #fff; padding: 6px 12px; font-size: 13px; }
+  .btn-save { background: #22c55e; color: #fff; padding: 6px 14px; }
+  .btn-cancel { background: #475569; color: #fff; padding: 6px 14px; }
+  .admin-badge { background: #166534; color: #bbf7d0; border-radius: 8px; padding: 8px 16px; margin-bottom: 20px; font-size: 14px; }
+  .card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; margin-bottom: 16px; }
+  .card-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .card-name { font-size: 18px; color: #f1f5f9; font-weight: bold; }
+  .badge { background: #1d4ed8; color: #bfdbfe; font-size: 12px; padding: 2px 8px; border-radius: 20px; margin-left: 8px; }
+  .card-desc { color: #94a3b8; font-size: 14px; margin-top: 6px; }
+  .card-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  input { width: 100%; background: #0f172a; color: #e2e8f0; border: 1px solid #475569; border-radius: 6px; padding: 8px; font-size: 14px; margin-bottom: 8px; }
+  .edit-btns { display: flex; gap: 8px; margin-top: 4px; }
+  /* Modal */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; z-index: 100; }
+  .modal-bg.active { display: flex; }
+  .modal { background: #1e293b; border-radius: 16px; padding: 32px; width: 320px; border: 1px solid #334155; }
+  .modal h2 { color: #f8fafc; margin-bottom: 20px; }
+  .modal-btns { display: flex; gap: 10px; margin-top: 16px; }
+  .modal-btns button { flex: 1; padding: 10px; }
+  .error { color: #f87171; font-size: 13px; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>🗂️ Software Collection</h1>
+    <p class="subtitle" id="count"></p>
+  </div>
+  <div class="header-btns">
+    <button class="btn-add" id="btnAdd" style="display:none" onclick="openAdd()">+ Add</button>
+    <button class="btn-login" id="btnLogin" onclick="openLogin()">🔒 Admin Login</button>
+    <button class="btn-logout" id="btnLogout" style="display:none" onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<div class="admin-badge" id="adminBadge" style="display:none">✅ Admin mode active — tum edit aur delete kar sakte ho</div>
+
+<div id="cardList"></div>
+
+<!-- Login Modal -->
+<div class="modal-bg" id="loginModal">
+  <div class="modal">
+    <h2>🔒 Admin Login</h2>
+    <input type="password" id="passInput" placeholder="Password daalo..." onkeydown="if(event.key==='Enter')doLogin()">
+    <p class="error" id="loginError"></p>
+    <div class="modal-btns">
+      <button class="btn-login" onclick="doLogin()">Login</button>
+      <button class="btn-cancel" onclick="closeLogin()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Modal -->
+<div class="modal-bg" id="addModal">
+  <div class="modal">
+    <h2>➕ New Software</h2>
+    <input id="newName" placeholder="Software name">
+    <input id="newCat" placeholder="Category (e.g. Design, Media)">
+    <input id="newDesc" placeholder="Description">
+    <div class="modal-btns">
+      <button class="btn-add" onclick="doAdd()">Add</button>
+      <button class="btn-cancel" onclick="closeAdd()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ADMIN_PASSWORD = "softvirus#3";
+let isAdmin = false;
+let editingId = null;
+
+let software = [
+  { id: 1, name: "Adobe Photoshop", category: "Design", description: "Professional image editing software" },
+  { id: 2, name: "VS Code", category: "Development", description: "Lightweight code editor by Microsoft" },
+  { id: 3, name: "VLC Media Player", category: "Media", description: "Free open-source media player" },
+];
+
+function render() {
+  document.getElementById("count").textContent = software.length + " softwares listed";
+  const list = document.getElementById("cardList");
+  list.innerHTML = "";
+  software.forEach(item => {
+    const card = document.createElement("div");
+    card.className = "card";
+    if (editingId === item.id) {
+      card.innerHTML = `
+        <input id="eName" value="${item.name}">
+        <input id="eCat" value="${item.category}">
+        <input id="eDesc" value="${item.description}">
+        <div class="edit-btns">
+          <button class="btn-save" onclick="saveEdit(${item.id})">Save</button>
+          <button class="btn-cancel" onclick="cancelEdit()">Cancel</button>
+        </div>`;
+    } else {
+      card.innerHTML = `
+        <div class="card-row">
+          <div>
+            <span class="card-name">${item.name}</span><span class="badge">${item.category}</span>
+            <p class="card-desc">${item.description}</p>
+          </div>
+          ${isAdmin ? `<div class="card-actions">
+            <button class="btn-edit" onclick="startEdit(${item.id})">✏️ Edit</button>
+            <button class="btn-delete" onclick="deleteItem(${item.id})">🗑️ Delete</button>
+          </div>` : ""}
+        </div>`;
+    }
+    list.appendChild(card);
+  });
+}
+
+function openLogin() { document.getElementById("loginModal").classList.add("active"); }
+function closeLogin() { document.getElementById("loginModal").classList.remove("active"); document.getElementById("passInput").value=""; document.getElementById("loginError").textContent=""; }
+function doLogin() {
+  const p = document.getElementById("passInput").value;
+  if (p === ADMIN_PASSWORD) {
+    isAdmin = true;
+    closeLogin();
+    document.getElementById("btnLogin").style.display = "none";
+    document.getElementById("btnLogout").style.display = "";
+    document.getElementById("btnAdd").style.display = "";
+    document.getElementById("adminBadge").style.display = "";
+    render();
+  } else {
+    document.getElementById("loginError").textContent = "Wrong password!";
+  }
+}
+function logout() {
+  isAdmin = false;
+  editingId = null;
+  document.getElementById("btnLogin").style.display = "";
+  document.getElementById("btnLogout").style.display = "none";
+  document.getElementById("btnAdd").style.display = "none";
+  document.getElementById("adminBadge").style.display = "none";
+  render();
+}
+
+function openAdd() { document.getElementById("addModal").classList.add("active"); }
+function closeAdd() { document.getElementById("addModal").classList.remove("active"); document.getElementById("newName").value=""; document.getElementById("newCat").value=""; document.getElementById("newDesc").value=""; }
+function doAdd() {
+  const name = document.getElementById("newName").value.trim();
+  if (!name) return;
+  software.push({ id: Date.now(), name, category: document.getElementById("newCat").value.trim(), description: document.getElementById("newDesc").value.trim() });
+  closeAdd();
+  render();
+}
+
+function deleteItem(id) { software = software.filter(s => s.id !== id); render(); }
+function startEdit(id) { editingId = id; render(); }
+function cancelEdit() { editingId = null; render(); }
+function saveEdit(id) {
+  software = software.map(s => s.id === id ? { ...s, name: document.getElementById("eName").value, category: document.getElementById("eCat").value, description: document.getElementById("eDesc").value } : s);
+  editingId = null;
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
